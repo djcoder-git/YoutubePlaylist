@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forex Rates</title>
+    <style>
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin: 20px auto;
+            text-align: left;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        caption {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="date-heading"></div>
+    <table>
+        <caption>Forex Rates</caption>
+        <thead>
+            <tr>
+                <th>Currency</th>
+                <th>Unit</th>
+                <th>Buy Rate</th>
+                <th>Sell Rate</th>
+            </tr>
+        </thead>
+        <tbody id="forex-rates">
+        </tbody>
+    </table>
+
+    <script>
+        // Function to get the current or tomorrow's date in YYYY-MM-DD format
+        function getFormattedDate(offset = 0) {
+            const date = new Date();
+            date.setDate(date.getDate() + offset); // Add offset for tomorrow (1) or keep today (0)
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+            const day = String(date.getDate()).padStart(2, '0');
+            return { formatted: `${year}-${month}-${day}`, display: `${day}-${month}-${year}` };
+        }
+
+        // Get today's date
+        const { formatted: currentDate, display: displayDate } = getFormattedDate(0); // Today's date
+
+        // Update the heading with the current date
+        document.getElementById('date-heading').innerText = `Exchange Rates for ${displayDate}`;
+        
+        // API URL with dynamic date
+        const apiURL = `https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=10&from=${currentDate}&to=${currentDate}`;
+
+        // Fetch data from API and populate the table
+        fetch(apiURL)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Extract rates from the API response
+                const rates = data.data.payload[0].rates;
+
+                // Select the table body element
+                const tableBody = document.getElementById('forex-rates');
+
+                // Loop through rates and add rows to the table
+                rates.forEach(rate => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${rate.currency.name} (${rate.currency.iso3})</td>
+                        <td>${rate.currency.unit}</td>
+                        <td>${rate.buy}</td>
+                        <td>${rate.sell}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error("Error fetching data:", error);
+                const tableBody = document.getElementById('forex-rates');
+                tableBody.innerHTML = `<tr><td colspan="4">Failed to load data. Please try again later.</td></tr>`;
+            });
+    </script>
+</body>
+</html>
