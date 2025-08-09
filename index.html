@@ -3,83 +3,334 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>JSON → HTML Table</title>
+<title>Colorful JSON Table</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 18px; }
-  input[type="search"] { padding: 8px; width: 320px; margin-bottom: 12px; }
-  table { border-collapse: collapse; width: 100%; max-width: 1200px;}
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-  th { cursor: pointer; background: #f3f4f6; position: relative; }
-  th .sortdir { font-size: 0.8em; margin-left: 6px; color:#666; }
-  tr:nth-child(even){ background: #fbfbfb; }
-  .small { font-size: 0.9em; color:#555; }
+  :root{
+    --bg:#0f172a;
+    --card:#0b1220;
+    --muted:#9aa4b2;
+    --accent1:#7c3aed; /* purple */
+    --accent2:#06b6d4; /* teal */
+    --glass: rgba(255,255,255,0.04);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    margin:0;
+    min-height:100vh;
+    background: linear-gradient(180deg,#071021 0%, #081228 40%, #061424 100%);
+    color:#e6eef8;
+    padding:28px;
+  }
+
+  .wrap{
+    max-width:1200px;
+    margin:0 auto;
+    display:flex;
+    gap:18px;
+    flex-direction:column;
+  }
+
+  .header {
+    display:flex;
+    align-items:center;
+    gap:18px;
+    justify-content:space-between;
+  }
+
+  .brand {
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .logo {
+    width:56px;height:56px;border-radius:12px;
+    background: linear-gradient(135deg,var(--accent1),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow: 0 6px 20px rgba(7,12,24,0.6), inset 0 -6px 18px rgba(255,255,255,0.06);
+    transform: rotate(-8deg);
+  }
+  .logo svg{filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));}
+  h1 { font-size:20px; margin:0; letter-spacing:0.2px; }
+  .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+
+  .controls {
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .select, .search {
+    background:var(--glass);
+    border:1px solid rgba(255,255,255,0.06);
+    padding:8px 12px;
+    border-radius:10px;
+    color:inherit;
+    outline:none;
+    font-size:14px;
+    min-width:140px;
+    transition: transform .14s ease;
+  }
+  .select:focus, .search:focus{ transform: translateY(-3px); box-shadow: 0 8px 24px rgba(12,18,30,0.45); }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: var(--radius);
+    padding:12px;
+    box-shadow: 0 10px 30px rgba(3,6,13,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  table {
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+    margin-top:8px;
+    overflow:hidden;
+    border-radius:10px;
+  }
+  thead th {
+    text-align:left;
+    padding:12px 12px;
+    font-weight:600;
+    font-size:13px;
+    color:#dbeafe;
+    letter-spacing:0.2px;
+    position:relative;
+    cursor:pointer;
+    user-select:none;
+    background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
+  }
+  tbody td {
+    padding:12px;
+    border-top:1px dashed rgba(255,255,255,0.03);
+    vertical-align:middle;
+    color: #d8e6f8;
+  }
+  tbody tr:hover {
+    background: linear-gradient(90deg, rgba(124,58,237,0.06), rgba(6,182,212,0.03));
+    transform: translateX(2px);
+  }
+  .badge {
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.3px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+  .badge.tech { background: linear-gradient(90deg,#7c3aed22,#7c3aed11); color:#e9d8fd; border-color: rgba(124,58,237,0.18); }
+  .badge.excel { background: linear-gradient(90deg,#05966922,#06b6d422); color:#dcfce7; border-color: rgba(6,182,212,0.15); }
+
+  .meta { color:var(--muted); font-size:12px; }
+  .right { text-align:right; }
+
+  .sortdir { font-size:12px; margin-left:6px; color:var(--muted); }
+
+  .empty {
+    padding:40px;
+    text-align:center;
+    color:var(--muted);
+  }
+
+  /* responsive */
+  @media (max-width:880px){
+    thead th, tbody td { padding:10px 8px; font-size:13px; }
+    .controls { flex-direction:column; align-items:stretch; }
+    .brand { gap:8px; }
+  }
+
+  /* subtle animation for header */
+  @keyframes floaty {
+    0%{ transform: translateY(0) rotate(-8deg) }
+    50%{ transform: translateY(-4px) rotate(-6deg) }
+    100%{ transform: translateY(0) rotate(-8deg) }
+  }
+  .logo { animation: floaty 5s ease-in-out infinite; }
 </style>
 </head>
 <body>
-<h2>JSON → HTML Table</h2>
-<p class="small">Data source: <code>tableConvert.com_7hyjku.json</code>. Save this file next to that JSON and open via a local server.</p>
+  <div class="wrap">
+    <div class="header">
+      <div class="brand">
+        <div class="logo" title="JSON → colorful table">
+          <!-- small table icon -->
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="white" opacity="0.12"/>
+            <path d="M7 9h10M7 12h10M7 15h6" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Interactive JSON Table</h1>
+          <div class="sub">Filter by category, search, sort and explore your data.</div>
+        </div>
+      </div>
 
-<input id="search" type="search" placeholder="Search table (Playlist Name, Category, Views, etc.)" />
+      <div class="controls">
+        <select id="category" class="select" title="Filter by category">
+          <option value="All">All Categories</option>
+          <option value="Tech">Tech</option>
+          <option value="Excel">Excel</option>
+        </select>
 
-<table id="data-table">
-  <thead id="thead"></thead>
-  <tbody id="tbody"></tbody>
-</table>
+        <input id="search" class="search" type="search" placeholder="Search across all fields..." />
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="table-wrap">
+        <table id="data-table" aria-live="polite">
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div id="empty" class="empty" style="display:none">No rows match your filter.</div>
+      </div>
+    </div>
+  </div>
 
 <script>
 (async function(){
-  // change path if your JSON is named differently
-  const resp = await fetch('./tableConvert.com_7hyjku.json');
-  const data = await resp.json();
-
-  if (!Array.isArray(data) || data.length === 0) {
-    document.body.insertAdjacentHTML('beforeend', '<p>No array data found in JSON.</p>');
+  // load the JSON file in same folder
+  let data;
+  try {
+    const resp = await fetch('./tableConvert.com_7hyjku.json');
+    if (!resp.ok) throw new Error('Failed to load JSON: ' + resp.status);
+    data = await resp.json();
+    if (!Array.isArray(data)) {
+      document.getElementById('table-wrap').innerHTML = '<div class="empty">JSON root is not an array — please provide an array of objects.</div>';
+      return;
+    }
+  } catch (err) {
+    document.getElementById('table-wrap').innerHTML = '<div class="empty">Error loading JSON: ' + (err.message || err) + '</div>';
     return;
   }
 
-  const columns = Object.keys(data[0]);
+  const columns = Array.from(new Set(data.flatMap(obj => Object.keys(obj))));
   const thead = document.getElementById('thead');
   const tbody = document.getElementById('tbody');
+  const emptyBox = document.getElementById('empty');
 
-  // build header with clickable sort
+  // Build header
   thead.innerHTML = '<tr>' + columns.map(c => `<th data-col="${c}">${c} <span class="sortdir"></span></th>`).join('') + '</tr>';
 
-  let currentSort = { col: null, asc: true };
-
-  function formatCell(key, val) {
-    // trim views and format as number where appropriate
-    if (key.toLowerCase().includes('views')) {
-      // remove commas/spaces and show a nicer number
-      const n = Number(String(val).replace(/[^\d.-]/g,''));
-      return isFinite(n) ? n.toLocaleString() : val;
-    }
-    if (key.toLowerCase().includes('date')) {
-      // try parse ISO date
-      const d = new Date(val);
-      return isNaN(d) ? val : d.toLocaleString();
-    }
-    return String(val);
-  }
-
-  function renderRows(rows) {
-    tbody.innerHTML = rows.map(row => '<tr>' + columns.map(c => `<td>${escapeHtml(formatCell(c, row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
-  }
-
+  // utils
   function escapeHtml(s){
-    return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;');
+  }
+
+  function formatCell(key, val){
+    if (val === null || val === undefined) return '';
+    const sval = String(val);
+    if (key.toLowerCase().includes('views')) {
+      const n = Number(sval.replace(/[^\d.-]/g,''));
+      return isFinite(n) ? n.toLocaleString() : escapeHtml(sval);
+    }
+    if (/\b(date|time)\b/i.test(key)) {
+      const d = new Date(sval);
+      return isNaN(d) ? escapeHtml(sval) : d.toLocaleString();
+    }
+    // if URL, show link
+    if (/^https?:\/\//i.test(sval)) {
+      return `<a href="${escapeHtml(sval)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">${escapeHtml(sval)}</a>`;
+    }
+    return escapeHtml(sval);
+  }
+
+  // render rows
+  let currentRows = data.slice(); // full copy
+  function renderRows(rows){
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      emptyBox.style.display = 'block';
+      return;
+    }
+    emptyBox.style.display = 'none';
+    tbody.innerHTML = rows.map(r => {
+      return '<tr>' + columns.map(col => {
+        // special styling for Category (badge)
+        if (/^category$/i.test(col)) {
+          const v = (r[col] ?? '').toString();
+          const cls = /tech/i.test(v) ? 'tech' : (/excel/i.test(v) ? 'excel' : '');
+          const badge = v ? `<span class="badge ${cls}">${escapeHtml(v)}</span>` : '';
+          return `<td>${badge}</td>`;
+        }
+        // right align numbers
+        const raw = r[col];
+        const numeric = typeof raw === 'number' || (/^[\d,.\s]+$/.test(String(raw || '')) && !isNaN(Number(String(raw).replace(/[, ]/g,''))));
+        const tdClass = numeric ? 'right' : '';
+        return `<td class="${tdClass}">${formatCell(col, raw)}</td>`;
+      }).join('') + '</tr>';
+    }).join('');
   }
 
   // initial render
-  let rows = data.slice();
-  renderRows(rows);
+  renderRows(currentRows);
 
   // sorting
+  let currentSort = { col: null, asc: true };
   document.querySelectorAll('th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
       const asc = (currentSort.col === col) ? !currentSort.asc : true;
       currentSort = { col, asc };
-      // sort heuristics: numeric when possible, else string
+      // clear indicators
+      document.querySelectorAll('.sortdir').forEach(s => s.textContent = '');
+      th.querySelector('.sortdir').textContent = asc ? '▲' : '▼';
+
+      currentRows.sort((a,b) => {
+        const av = a[col] ?? '';
+        const bv = b[col] ?? '';
+        // numeric if both parse numeric
+        const an = Number(String(av).replace(/[^\d.-]/g,''));
+        const bn = Number(String(bv).replace(/[^\d.-]/g,''));
+        if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
+        return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      });
+      renderRows(filteredAndSearched());
+    });
+  });
+
+  // filtering by category selector
+  const categorySelect = document.getElementById('category');
+  categorySelect.addEventListener('change', () => {
+    renderRows(filteredAndSearched());
+  });
+
+  // search
+  const searchInput = document.getElementById('search');
+  searchInput.addEventListener('input', () => {
+    renderRows(filteredAndSearched());
+  });
+
+  function filteredAndSearched(){
+    const cat = categorySelect.value;
+    const q = searchInput.value.trim().toLowerCase();
+
+    let rows = data.filter(row => {
+      // category filter
+      if (cat && cat !== 'All') {
+        const v = Object.entries(row).find(([k]) => /^category$/i.test(k));
+        const val = v ? (row[v[0]] ?? '') : '';
+        if (!new RegExp(`^${cat}$`, 'i').test(String(val).trim())) return false;
+      }
+      return true;
+    });
+
+    if (q) {
+      rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
+    }
+
+    // apply currentSort to result set
+    if (currentSort.col) {
+      const col = currentSort.col;
+      const asc = currentSort.asc;
       rows.sort((a,b) => {
         const av = a[col] ?? '';
         const bv = b[col] ?? '';
@@ -88,19 +339,20 @@
         if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
         return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
       });
-      // update header indicators
-      document.querySelectorAll('.sortdir').forEach(s => s.textContent = '');
-      th.querySelector('.sortdir').textContent = asc ? '▲' : '▼';
-      renderRows(rows);
-    });
-  });
+    }
+    currentRows = rows;
+    return rows;
+  }
 
-  // search
-  document.getElementById('search').addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    if (!q) { renderRows(rows); return; }
-    const filtered = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
-    renderRows(filtered);
+  // keyboard shortcut: press "/" to focus search
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '/') {
+      if (document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+    }
   });
 
 })();
