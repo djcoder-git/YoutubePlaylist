@@ -1,674 +1,109 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Playlist / Videos Viewer</title>
-  <style>
-    :root{
-      --bg:#0f1724; --card:#0b1220; --muted:#98a0b3; --accent:#7dd3fc;
-      --glass: rgba(255,255,255,0.03);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    body{margin:0;background:linear-gradient(180deg,#071028 0%, #071b2a 100%);color:#e6eef8;min-height:100vh;padding:28px;}
-    .container{max-width:1100px;margin:0 auto;}
-    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
-    h1{font-size:20px;margin:0}
-    p.lead{margin:0;color:var(--muted);font-size:13px}
-    .toolbar{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}
-    input[type="search"]{
-      background:var(--glass);border:1px solid rgba(255,255,255,0.04);padding:10px 12px;border-radius:10px;
-      color:inherit;font-size:14px;min-width:240px;
-    }
-    select, button{padding:10px 12px;border-radius:10px;border:0;background:var(--card);color:inherit;font-size:14px}
-    .grid{display:grid;grid-template-columns: 1fr 360px; gap:18px;align-items:start}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:14px;border-radius:12px;box-shadow: 0 6px 18px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.02);}
-    .playlist {margin-bottom:12px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.02)}
-    .playlist h3{margin:0;padding:12px 14px;background:linear-gradient(90deg, rgba(125,211,252,0.06), rgba(125,211,252,0.02));font-size:15px}
-    .videos{padding:10px 14px}
-    .video{padding:8px 10px;border-radius:8px;margin-bottom:8px;display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.01)}
-    .video span.title{flex:1;font-size:14px;color:#eaf6ff}
-    .muted{color:var(--muted);font-size:13px}
-    .stats{font-size:13px;color:var(--muted);margin-top:8px}
-    .empty{padding:26px;text-align:center;color:var(--muted)}
-    .sidebar .card{position:sticky;top:28px}
-    .count-badge{background:rgba(125,211,252,0.12);color:var(--accent);padding:6px 10px;border-radius:999px;font-weight:600}
-    footer{margin-top:20px;text-align:center;color:var(--muted);font-size:13px}
-    @media (max-width:980px){
-      .grid{grid-template-columns:1fr; }
-      .sidebar{order:2}
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>JSON → HTML Table</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 18px; }
+  input[type="search"] { padding: 8px; width: 320px; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; max-width: 1200px;}
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  th { cursor: pointer; background: #f3f4f6; position: relative; }
+  th .sortdir { font-size: 0.8em; margin-left: 6px; color:#666; }
+  tr:nth-child(even){ background: #fbfbfb; }
+  .small { font-size: 0.9em; color:#555; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div>
-        <h1>JSON → Playlists & Videos</h1>
-        <p class="lead">Rendering your uploaded JSON file as grouped playlists and searchable video list. (Source file provided by user.)</p>
-      </div>
-      <div style="margin-left:auto" class="count-badge" id="totalCount">0 items</div>
-    </header>
+<h2>JSON → HTML Table</h2>
+<p class="small">Data source: <code>tableConvert.com_7hyjku.json</code>. Save this file next to that JSON and open via a local server.</p>
 
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <input type="search" id="q" placeholder="Search video titles..." aria-label="Search videos" />
-      <select id="playlistFilter">
-        <option value="__all__">All Playlists</option>
-      </select>
-      <button id="resetBtn" title="Reset filters">Reset</button>
-      <button id="exportCsv" title="Export current view as CSV">Export CSV</button>
-    </div>
+<input id="search" type="search" placeholder="Search table (Playlist Name, Category, Views, etc.)" />
 
-    <div class="grid">
-      <!-- main -->
-      <div>
-        <div class="card" id="playlistsContainer">
-          <!-- playlists will render here -->
-          <div class="empty" id="emptyMsg">Loading data…</div>
-        </div>
-      </div>
+<table id="data-table">
+  <thead id="thead"></thead>
+  <tbody id="tbody"></tbody>
+</table>
 
-      <!-- sidebar -->
-      <aside class="sidebar">
-        <div class="card">
-          <h3 style="margin-top:0">Quick Info</h3>
-          <div class="videos" id="sideList">
-            <div class="muted">No selection</div>
-          </div>
+<script>
+(async function(){
+  // change path if your JSON is named differently
+  const resp = await fetch('./tableConvert.com_7hyjku.json');
+  const data = await resp.json();
 
-          <div class="stats" style="margin-top:12px">
-            <div><strong id="uniquePlaylists">0</strong> unique playlists</div>
-            <div><strong id="uniqueVideos">0</strong> video entries</div>
-          </div>
-        </div>
-      </aside>
-    </div>
-
-    <footer>
-      Generated HTML viewer • Uses uploaded JSON file. :contentReference[oaicite:1]{index=1}
-    </footer>
-  </div>
-
-  <!-- Embed the JSON data (from your uploaded file) -->
-  <script id="json-data" type="application/json">
-[
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 12"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 11"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 11 | TRAILER"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 10"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 09"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 08"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Rs.250 Crore Valuation! Biggest Pitch Ever on Shark Tank Nepal | Season 1 | Episode 7"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 07 | TRAILER"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 06"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 05"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 05 | TRAILER"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Highest Ever Deal of Shark Tank Nepal ! Unbelievable Pitch | Season 1 | Episode 04"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 03"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 02"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Shark Tank Nepal | Season 1 | Episode 01 | Grand Premiere"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Tank Talks  | Sanjog Koirala & Priyanka Rani Joshi | Shark Tank Nepal Exclusive"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "Tank Talks Promo | Sanjog Koirala & Priyanka Rani Joshi | Shark Tank Nepal Exclusive"
-  },
-  {
-    "Playlist Name": "SHARK TANK NEPAL S1",
-    "Video Title": "SHARK TANK NEPAL PROMO | SEASON 1"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 1 - Building Mobile Apps with Python | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 2 - Creating Labels and Text Styles | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 3 - Creating Buttons in Material Design | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 4 - Themes and Color Palettes | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 5 - User Input with Text Field | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 6 - Binding Input and Button | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 7 - Creating Dialog Boxes | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 8 - Creating Lists | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 9 - Avatar and Icon Lists | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 10 - Creating DataTable | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 11 - Creating Toolbars | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 12 - Navigation Drawer  | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 13 - Content in Navigation Drawer | KivyMD"
-  },
-  {
-    "Playlist Name": "Kivy Tutorial - Building Mobile Apps with Python | KivyMD",
-    "Video Title": "Kivy Tutorial 14 - Changing Screens using ScreenManager | KivyMD"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Putt Jatt Da (Official Video) | Simiran Kaur Dhadli | Desi Trap Music | Barinder Dhapai"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa \"El Jefe\" - Banda De Camion | Video Oficial"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "With You - AP Dhillon (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Lyrical: Tum Hi Aana | Marjaavaan | Riteish D, Sidharth M, Tara S |Jubin Nautiyal,Payal Dev,Kunaal V"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "YODHA: Zindagi Tere Naam (Song) | Sidharth Malhotra, Raashii Khanna | Vishal Mishra"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Sau Aasmaan - Full Video | Baar Baar Dekho | Sidharth Malhotra & Katrina Kaif |Armaan,Amaal & Neeti"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tainu Khabar Nahi - Arijit Singh | Munjya | Sharvari, Abhay Verma| Sachin-Jigar,Amitabh Bhattacharya"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Young G.O.A.T (Official Video) Cheema Y | Gur Sidhu | New Punjabi Song 2025"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Jhol | Coke Studio Pakistan | Season 15 | Maanu x Annural Khalid"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Taras | Munjya | Sharvari & Abhay Verma | Sachin-Jigar, Jasmine Sandlas | Amitabh Bhattacharya"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Sahiba (Music Video) Jasleen Royal |Vijay Deverakonda Radhikka Madan|Stebin| Priya|Aditya| Sudhanshu"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Mere Mehboob | Vicky Vidya Ka Woh Wala Video | Rajkummar | Triptii Dimri |Sachin-Jigar,Shilpa,Sachet"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "David Guetta live @ Tomorrowland 2025 | MainStage Closing Set WE1"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Sambhala Hai Maine | Kumar Sanu | Naaraaz (1994)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tu Pyar Hai Kisi Aur Ka (Full Song) Film - Dil Hai Ke Manta Nahin"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Chhupana Bhi Nahi Aata - 4K VIDEO | Baazigar | Shahrukh & Kajol | Vinod Rathod | 90's Romantic Song"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Dekha jo tumko ye dil ko kya huva l Kumar s, Alka S l Kasoor l"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "ISHQ NE TERE"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Kiska Chehra Ab Main Dekhu | Jagjit Singh, Alka Yagnik | Tarkieb 2000 | Tabu"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Saiyaara Reprise - Female | Full Song Audio | Saiyaara | Tanishk, Faheem, Arslan N | Shreya | Irshad"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tadpaoge Tadpa Lo - Audio | Barkha | Lata Mangeshkar | Chitragupta | Trending Songs |Old Hindi Songs"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa \"El Jefe\" x Kim Loaiza - Si, Es Asi | Video Oficial"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "BAD BUNNY FT. EL ALFA - LA ROMANA | X100PRE (Video Oficial)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa El Jefe - Gogo Dance (Video Oficial) #ElAlfaSabiduria"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa x Darell x Noriel - 4K (Video Oficial)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa El Jefe - Suave (Video Oficial)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa \"El Jefe\" x CJ x El Cherry Scom - La Mamá de la Mamá (Video Oficial) #SagitarioTheAlbum"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "El Alfa “El Jefe” X Noriel - MARTILLANDO  #ElReyDelDembow"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "WAVY (OFFICIAL VIDEO) KARAN AUJLA | LATEST PUNJABI SONGS 2024"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Travis Scott - DUMBO"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tum Ho Toh Song | Saiyaara | Ahaan Panday, Aneet Padda | Vishal Mishra, Hansika Pareek | Raj Shekhar"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "6 AM (Official Video): YO YO HONEY SINGH | HEERA SOHAL | GLORY | BHUSHAN KUMAR"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Barbaad Song | Saiyaara | Ahaan Panday, Aneet Padda | The Rish | Jubin Nautiyal | In Cinemas Now"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Sahiba (Official Music Video) : Aditya Rikhari, Ankita Chhetri | T-Series"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Shubh - Supreme (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "DILJIT DOSANJH : CHILL MARDI (Official Video) JAANI | #trending #diljitdosanjh #trendingvideo"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Sushant KC - Pahuna (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "BLACKPINK - ‘뛰어(JUMP)’ M/V"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Jane Bhaye Jam Maya || Durgesh Thapa/Sisan Baniya/Gurash Nani || New Nepali Latest Song 2025"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "DHAK DHAK (Official Video) - Aanchal Tyagi X Raga X Rusha & Blizza  X Abhijeet Srivastava"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "DUSMAN HEREKO HERAI | Durgesh Thapa/Priyanka Karki/Kabita Nepali/Ananda Karki/Samikshya/Eleena,Pema"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Hami Pani Nachnu Parchha Bicha Bichama  \"Kacho Katar\" Rocking Teej Song by Durgesh Thapa Obi Lomash"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Lil Nas X - HOTBOX (Official Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "LE SSERAFIM (르세라핌) 'HOT' OFFICIAL MV"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Selena Gomez, benny blanco - Sunset Blvd (Official Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "David Guetta & Sia - Beautiful People (Official Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Beyoncé, GloRilla - Diva X TGIF (TikTok Mashup) [Lyrics]"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tinashe - Nasty (Lyrics)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Artemas - i like the way you kiss me (Lyrics)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Naughty Boy, Sam Smith - La La La (Lyrics)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "kompa - roma x frozy (she said shes from the island)  (tiktok, sped up) [lyrics]"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "SEVDALIZA FT. PABLLO VITTAR & YSEULT - ALIBI (Letra/Lyrics)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "ROSÉ & Bruno Mars - APT. (Lyrics)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tyla, Travis Scott - PUSH 2 START (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Tyla, Sean Paul - Water (Remix - Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Chris Brown & Benny Benassi - Beautiful People"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Eminem - Godzilla ft. Juice WRLD (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Masked Wolf - Astronaut In The Ocean (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Lil Nas X - Old Town Road (Official Music Video) ft. Billy Ray Cyrus"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Hanumankind - Run It Up ( Prod. By Kalmi ) | (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Guns N' Roses - Sweet Child O' Mine (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "A Light That Never Comes [Official Music Video] - Linkin Park X Steve Aoki"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Metallica: Nothing Else Matters (Official Music Video)"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "BEST WORKOUT MUSIC MIX 💪 AGGRESSIVE HIPHOP TRAP & BASS 🔥 GYM MOTIVATION MUSIC 2023"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Top 10 Workout music from Neffex songs | best of Neffex songs | best motivational songs 2023 🔊 Best EDM & Popular Songs Remix"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Best Gym Workout Music Mix 💪 Top Fitness Motivation Songs 2023 🔊 Best EDM & Popular Songs Remix"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Top 10 songs for Workout |Best gym songs/music |English | Workout/gym Motivation| February 2019"
-  },
-  {
-    "Playlist Name": "Music",
-    "Video Title": "Top motivational songs| Best workout songs| English music |Hollywood songs| December 2018🔥"
+  if (!Array.isArray(data) || data.length === 0) {
+    document.body.insertAdjacentHTML('beforeend', '<p>No array data found in JSON.</p>');
+    return;
   }
-]
-  </script>
 
-  <script>
-    // Parse JSON embedded
-    const raw = document.getElementById('json-data').textContent.trim();
-    let data = [];
-    try { data = JSON.parse(raw); } catch(e) { console.error('Invalid JSON', e); document.getElementById('emptyMsg').textContent = 'Error parsing JSON.'; }
+  const columns = Object.keys(data[0]);
+  const thead = document.getElementById('thead');
+  const tbody = document.getElementById('tbody');
 
-    const playlistsContainer = document.getElementById('playlistsContainer');
-    const playlistFilter = document.getElementById('playlistFilter');
-    const qInput = document.getElementById('q');
-    const totalCount = document.getElementById('totalCount');
-    const uniquePlaylistsEl = document.getElementById('uniquePlaylists');
-    const uniqueVideosEl = document.getElementById('uniqueVideos');
-    const sideList = document.getElementById('sideList');
-    const emptyMsg = document.getElementById('emptyMsg');
+  // build header with clickable sort
+  thead.innerHTML = '<tr>' + columns.map(c => `<th data-col="${c}">${c} <span class="sortdir"></span></th>`).join('') + '</tr>';
 
-    // Group by playlist name
-    function groupBy(arr, key){
-      return arr.reduce((acc,item)=>{
-        const k = item[key] || 'Unknown';
-        if(!acc[k]) acc[k] = [];
-        acc[k].push(item);
-        return acc;
-      }, {});
+  let currentSort = { col: null, asc: true };
+
+  function formatCell(key, val) {
+    // trim views and format as number where appropriate
+    if (key.toLowerCase().includes('views')) {
+      // remove commas/spaces and show a nicer number
+      const n = Number(String(val).replace(/[^\d.-]/g,''));
+      return isFinite(n) ? n.toLocaleString() : val;
     }
+    if (key.toLowerCase().includes('date')) {
+      // try parse ISO date
+      const d = new Date(val);
+      return isNaN(d) ? val : d.toLocaleString();
+    }
+    return String(val);
+  }
 
-    const grouped = groupBy(data, 'Playlist Name');
-    const playlistNames = Object.keys(grouped).sort((a,b)=>a.localeCompare(b));
+  function renderRows(rows) {
+    tbody.innerHTML = rows.map(row => '<tr>' + columns.map(c => `<td>${escapeHtml(formatCell(c, row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
+  }
 
-    // Populate filter select
-    playlistNames.forEach(name=>{
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      playlistFilter.appendChild(opt);
-    });
+  function escapeHtml(s){
+    return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
 
-    // Render function
-    function render(opts={playlist:'__all__', query:''}){
-      const q = (opts.query||'').toLowerCase().trim();
-      const chosen = opts.playlist;
-      playlistsContainer.innerHTML = ''; // clear
+  // initial render
+  let rows = data.slice();
+  renderRows(rows);
 
-      let totalVideos = 0;
-      const matchPlaylists = playlistNames.filter(name => chosen==='__all__' ? true : name === chosen);
-
-      if(matchPlaylists.length === 0){
-        playlistsContainer.innerHTML = '<div class="empty">No playlists found.</div>';
-        return;
-      }
-
-      matchPlaylists.forEach(name=>{
-        const block = document.createElement('div');
-        block.className = 'playlist';
-        const header = document.createElement('h3');
-        header.textContent = name;
-        block.appendChild(header);
-
-        const videosWrap = document.createElement('div');
-        videosWrap.className = 'videos';
-
-        // filter videos by search
-        const items = grouped[name].filter(it => !q || (it['Video Title']||'').toLowerCase().includes(q));
-        if(items.length === 0){
-          const empty = document.createElement('div');
-          empty.className = 'empty muted';
-          empty.textContent = 'No videos match the search in this playlist.';
-          videosWrap.appendChild(empty);
-        } else {
-          items.forEach((it, idx)=>{
-            const v = document.createElement('div');
-            v.className = 'video';
-            const num = document.createElement('div');
-            num.className = 'muted';
-            num.style.minWidth = '36px';
-            num.textContent = idx+1;
-            const title = document.createElement('span');
-            title.className = 'title';
-            title.textContent = it['Video Title'] || '(no title)';
-            v.appendChild(num);
-            v.appendChild(title);
-            const clipBtn = document.createElement('button');
-            clipBtn.textContent = 'Copy title';
-            clipBtn.title = 'Copy video title to clipboard';
-            clipBtn.addEventListener('click', ()=>navigator.clipboard?.writeText(it['Video Title']||''));
-            v.appendChild(clipBtn);
-            videosWrap.appendChild(v);
-            totalVideos++;
-          });
-        }
-
-        block.appendChild(videosWrap);
-        playlistsContainer.appendChild(block);
+  // sorting
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      const asc = (currentSort.col === col) ? !currentSort.asc : true;
+      currentSort = { col, asc };
+      // sort heuristics: numeric when possible, else string
+      rows.sort((a,b) => {
+        const av = a[col] ?? '';
+        const bv = b[col] ?? '';
+        const an = Number(String(av).replace(/[^\d.-]/g,''));
+        const bn = Number(String(bv).replace(/[^\d.-]/g,''));
+        if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
+        return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
       });
-
-      totalCount.textContent = `${totalVideos} item${totalVideos===1?'':'s'}`;
-      uniquePlaylistsEl.textContent = playlistNames.length;
-      uniqueVideosEl.textContent = data.length;
-
-      // update sidebar quick list (top matched videos)
-      sideList.innerHTML = '';
-      const topMatches = [];
-      for(const name of matchPlaylists){
-        for(const it of grouped[name]){
-          if(!q || (it['Video Title']||'').toLowerCase().includes(q)) topMatches.push({p:name, t:it['Video Title']});
-          if(topMatches.length>=8) break;
-        }
-        if(topMatches.length>=8) break;
-      }
-      if(topMatches.length===0){
-        sideList.innerHTML = '<div class="muted">No videos to preview</div>';
-      } else {
-        topMatches.forEach(item=>{
-          const el = document.createElement('div');
-          el.className = 'video';
-          el.innerHTML = `<div style="min-width:36px" class="muted">•</div><div class="title">${item.t}</div>`;
-          sideList.appendChild(el);
-        });
-      }
-
-      // If nothing matched at all, show empty message
-      if(totalVideos === 0){
-        emptyMsg.style.display = 'block';
-        emptyMsg.textContent = q ? 'No videos match your search.' : 'No videos found for this playlist.';
-      } else {
-        emptyMsg.style.display = 'none';
-      }
-    }
-
-    // Initial render
-    render({playlist:'__all__', query:''});
-
-    // Events
-    qInput.addEventListener('input', ()=>render({playlist: playlistFilter.value, query: qInput.value}));
-    playlistFilter.addEventListener('change', ()=>render({playlist: playlistFilter.value, query: qInput.value}));
-    document.getElementById('resetBtn').addEventListener('click', ()=>{
-      qInput.value=''; playlistFilter.value='__all__'; render({playlist:'__all__', query:''});
+      // update header indicators
+      document.querySelectorAll('.sortdir').forEach(s => s.textContent = '');
+      th.querySelector('.sortdir').textContent = asc ? '▲' : '▼';
+      renderRows(rows);
     });
+  });
 
-    // Export CSV of current view
-    function itemsForExport(){
-      const chosen = playlistFilter.value;
-      const q = qInput.value.toLowerCase().trim();
-      const rows = [];
-      for(const name of playlistNames){
-        if(chosen !== '__all__' && name !== chosen) continue;
-        for(const it of grouped[name]){
-          if(q && !((it['Video Title']||'').toLowerCase().includes(q))) continue;
-          rows.push({playlist: name, title: it['Video Title']||''});
-        }
-      }
-      return rows;
-    }
+  // search
+  document.getElementById('search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { renderRows(rows); return; }
+    const filtered = rows.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+    renderRows(filtered);
+  });
 
-    document.getElementById('exportCsv').addEventListener('click', ()=>{
-      const rows = itemsForExport();
-      if(rows.length === 0){ alert('Nothing to export.'); return; }
-      const csv = ['"Playlist Name","Video Title"'].concat(rows.map(r=>`"${r.playlist.replace(/"/g,'""')}","${r.title.replace(/"/g,'""')}"`)).join('\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'export_playlists.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
-
-    // update counts on load
-    totalCount.textContent = `${data.length} item${data.length===1?'':'s'}`;
-    uniquePlaylistsEl.textContent = playlistNames.length;
-    uniqueVideosEl.textContent = data.length;
-  </script>
+})();
+</script>
 </body>
 </html>
-
