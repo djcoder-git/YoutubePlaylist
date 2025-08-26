@@ -10,8 +10,8 @@
     --bg:#0f172a;
     --card:#0b1220;
     --muted:#9aa4b2;
-    --accent1:#7c3aed; /* purple */
-    --accent2:#06b6d4; /* teal */
+    --accent1:#7c3aed;
+    --accent2:#06b6d4;
     --glass: rgba(255,255,255,0.04);
     --radius:14px;
   }
@@ -136,30 +136,29 @@
     color:var(--muted);
   }
 
-  /* YouTube icon cell */
+  /* YouTube thumbnail cell */
   .yt-cell {
     display: flex;
     justify-content: center;
     align-items: center;
   }
-  .yt-link {
-    display: inline-flex;
-    padding: 6px;
-    border-radius: 50%;
-    transition: background 0.2s ease;
+  .yt-thumb {
+    width: 120px;
+    border-radius: 8px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
   }
-  .yt-link:hover {
-    background: rgba(255,0,0,0.15);
+  .yt-thumb:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
   }
 
-  /* responsive */
   @media (max-width:880px){
     thead th, tbody td { padding:10px 8px; font-size:13px; }
     .controls { flex-direction:column; align-items:stretch; }
     .brand { gap:8px; }
+    .yt-thumb { width: 90px; }
   }
 
-  /* subtle animation for header */
   @keyframes floaty {
     0%{ transform: translateY(0) rotate(-8deg) }
     50%{ transform: translateY(-4px) rotate(-6deg) }
@@ -173,7 +172,6 @@
     <div class="header">
       <div class="brand">
         <div class="logo" title="Favorite YouTube Playlist">
-          <!-- small table icon -->
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="3" y="5" width="18" height="14" rx="2" fill="white" opacity="0.12"/>
             <path d="M7 9h10M7 12h10M7 15h6" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
@@ -208,7 +206,6 @@
 
 <script>
 (async function(){
-  // load the JSON file in same folder
   let data;
   try {
     const resp = await fetch('./tableConvert.com_7hyjku.json');
@@ -228,10 +225,8 @@
   const tbody = document.getElementById('tbody');
   const emptyBox = document.getElementById('empty');
 
-  // Build header
   thead.innerHTML = '<tr>' + columns.map(c => `<th data-col="${c}">${c} <span class="sortdir"></span></th>`).join('') + '</tr>';
 
-  // utils
   function escapeHtml(s){
     if (s === null || s === undefined) return '';
     return String(s)
@@ -240,21 +235,37 @@
       .replaceAll('>','&gt;');
   }
 
+  function extractYouTubeId(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('youtu.be')) {
+        return u.pathname.slice(1);
+      }
+      if (u.searchParams.has('v')) {
+        return u.searchParams.get('v');
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   function formatCell(key, val){
     if (val === null || val === undefined) return '';
     const sval = String(val);
 
-    // handle YouTube link specially
+    // YouTube thumbnail
     if (/^https?:\/\/(www\.)?youtube\.com|youtu\.be/i.test(sval)) {
-      return `
-        <div class="yt-cell">
-          <a href="${escapeHtml(sval)}" target="_blank" rel="noopener"
-             title="Watch on YouTube" class="yt-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path fill="#ff0000" d="M23.5 6.2s-.2-1.6-.8-2.4c-.8-.9-1.7-.9-2.1-1-3-.2-7.6-.2-7.6-.2h-.1s-4.6 0-7.6.2c-.4 0-1.3.1-2.1 1-.6.8-.8 2.4-.8 2.4S2 7.9 2 9.7v1.6c0 1.8.2 3.5.2 3.5s.2 1.6.8 2.4c.8.9 1.8.9 2.2 1 1.6.2 6.8.2 6.8.2s4.6 0 7.6-.2c.4 0 1.3-.1 2.1-1 .6-.8.8-2.4.8-2.4s.2-1.8.2-3.5V9.7c0-1.8-.2-3.5-.2-3.5zM9.8 14.6V8.8l6.1 2.9-6.1 2.9z"/>
-            </svg>
-          </a>
-        </div>`;
+      const id = extractYouTubeId(sval);
+      if (id) {
+        const thumb = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+        return `
+          <div class="yt-cell">
+            <a href="${escapeHtml(sval)}" target="_blank" rel="noopener">
+              <img src="${thumb}" alt="YouTube Thumbnail" class="yt-thumb"/>
+            </a>
+          </div>`;
+      }
     }
 
     if (key.toLowerCase().includes('views')) {
@@ -271,8 +282,6 @@
     return escapeHtml(sval);
   }
 
-  // render rows
-  let currentRows = data.slice(); // full copy
   function renderRows(rows){
     if (!rows.length) {
       tbody.innerHTML = '';
@@ -296,10 +305,9 @@
     }).join('');
   }
 
-  // initial render
+  let currentRows = data.slice();
   renderRows(currentRows);
 
-  // sorting
   let currentSort = { col: null, asc: true };
   document.querySelectorAll('th[data-col]').forEach(th => {
     th.addEventListener('click', () => {
@@ -321,13 +329,11 @@
     });
   });
 
-  // filtering by category selector
   const categorySelect = document.getElementById('category');
   categorySelect.addEventListener('change', () => {
     renderRows(filteredAndSearched());
   });
 
-  // search
   const searchInput = document.getElementById('search');
   searchInput.addEventListener('input', () => {
     renderRows(filteredAndSearched());
@@ -380,4 +386,3 @@
 </script>
 </body>
 </html>
-
