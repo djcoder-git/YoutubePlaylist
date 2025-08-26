@@ -136,6 +136,22 @@
     color:var(--muted);
   }
 
+  /* YouTube icon cell */
+  .yt-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .yt-link {
+    display: inline-flex;
+    padding: 6px;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+  }
+  .yt-link:hover {
+    background: rgba(255,0,0,0.15);
+  }
+
   /* responsive */
   @media (max-width:880px){
     thead th, tbody td { padding:10px 8px; font-size:13px; }
@@ -172,7 +188,7 @@
       <div class="controls">
         <select id="category" class="select" title="Filter by category">
           <option value="All">All Categories</option>
-          <option value="SHARK TANK NEPAL S1">SHARK TANK NEPAL S1</option>
+          <option value="Microsoft Excel">Microsoft Excel</option>
         </select>
 
         <input id="search" class="search" type="search" placeholder="Search across all fields..." />
@@ -227,6 +243,20 @@
   function formatCell(key, val){
     if (val === null || val === undefined) return '';
     const sval = String(val);
+
+    // handle YouTube link specially
+    if (/^https?:\/\/(www\.)?youtube\.com|youtu\.be/i.test(sval)) {
+      return `
+        <div class="yt-cell">
+          <a href="${escapeHtml(sval)}" target="_blank" rel="noopener"
+             title="Watch on YouTube" class="yt-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path fill="#ff0000" d="M23.5 6.2s-.2-1.6-.8-2.4c-.8-.9-1.7-.9-2.1-1-3-.2-7.6-.2-7.6-.2h-.1s-4.6 0-7.6.2c-.4 0-1.3.1-2.1 1-.6.8-.8 2.4-.8 2.4S2 7.9 2 9.7v1.6c0 1.8.2 3.5.2 3.5s.2 1.6.8 2.4c.8.9 1.8.9 2.2 1 1.6.2 6.8.2 6.8.2s4.6 0 7.6-.2c.4 0 1.3-.1 2.1-1 .6-.8.8-2.4.8-2.4s.2-1.8.2-3.5V9.7c0-1.8-.2-3.5-.2-3.5zM9.8 14.6V8.8l6.1 2.9-6.1 2.9z"/>
+            </svg>
+          </a>
+        </div>`;
+    }
+
     if (key.toLowerCase().includes('views')) {
       const n = Number(sval.replace(/[^\d.-]/g,''));
       return isFinite(n) ? n.toLocaleString() : escapeHtml(sval);
@@ -235,7 +265,6 @@
       const d = new Date(sval);
       return isNaN(d) ? escapeHtml(sval) : d.toLocaleString();
     }
-    // if URL, show link
     if (/^https?:\/\//i.test(sval)) {
       return `<a href="${escapeHtml(sval)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">${escapeHtml(sval)}</a>`;
     }
@@ -253,14 +282,12 @@
     emptyBox.style.display = 'none';
     tbody.innerHTML = rows.map(r => {
       return '<tr>' + columns.map(col => {
-        // special styling for Category (badge)
         if (/^category$/i.test(col)) {
           const v = (r[col] ?? '').toString();
           const cls = /tech/i.test(v) ? 'tech' : (/excel/i.test(v) ? 'excel' : '');
           const badge = v ? `<span class="badge ${cls}">${escapeHtml(v)}</span>` : '';
           return `<td>${badge}</td>`;
         }
-        // right align numbers
         const raw = r[col];
         const numeric = typeof raw === 'number' || (/^[\d,.\s]+$/.test(String(raw || '')) && !isNaN(Number(String(raw).replace(/[, ]/g,''))));
         const tdClass = numeric ? 'right' : '';
@@ -279,14 +306,12 @@
       const col = th.dataset.col;
       const asc = (currentSort.col === col) ? !currentSort.asc : true;
       currentSort = { col, asc };
-      // clear indicators
       document.querySelectorAll('.sortdir').forEach(s => s.textContent = '');
       th.querySelector('.sortdir').textContent = asc ? '▲' : '▼';
 
       currentRows.sort((a,b) => {
         const av = a[col] ?? '';
         const bv = b[col] ?? '';
-        // numeric if both parse numeric
         const an = Number(String(av).replace(/[^\d.-]/g,''));
         const bn = Number(String(bv).replace(/[^\d.-]/g,''));
         if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
@@ -313,7 +338,6 @@
     const q = searchInput.value.trim().toLowerCase();
 
     let rows = data.filter(row => {
-      // category filter
       if (cat && cat !== 'All') {
         const v = Object.entries(row).find(([k]) => /^category$/i.test(k));
         const val = v ? (row[v[0]] ?? '') : '';
@@ -326,7 +350,6 @@
       rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
     }
 
-    // apply currentSort to result set
     if (currentSort.col) {
       const col = currentSort.col;
       const asc = currentSort.asc;
@@ -343,7 +366,6 @@
     return rows;
   }
 
-  // keyboard shortcut: press "/" to focus search
   window.addEventListener('keydown', (e) => {
     if (e.key === '/') {
       if (document.activeElement !== searchInput) {
@@ -358,10 +380,3 @@
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
