@@ -341,13 +341,16 @@
   });
 
 function filteredAndSearched() {
-  const cat = categorySelect.value;
+  const cat = categorySelect.value.trim().toLowerCase();
   const q = searchInput.value.trim().toLowerCase();
 
+  // Find category key dynamically
+  const catKey = Object.keys(data[0] || {}).find(k => k.toLowerCase() === 'category');
+
   let rows = data.filter(row => {
-    const rowCategory = (row.category ?? '').toString().trim().toLowerCase();
-    if (cat && cat !== 'All Categories') {
-      if (rowCategory !== cat.toLowerCase()) return false;
+    if (catKey && cat !== 'all categories') {
+      const val = (row[catKey] ?? '').toString().trim().toLowerCase();
+      if (val !== cat) return false;
     }
     return true;
   });
@@ -356,6 +359,7 @@ function filteredAndSearched() {
     rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
   }
 
+  // Sorting
   if (currentSort.col) {
     const col = currentSort.col;
     const asc = currentSort.asc;
@@ -373,6 +377,7 @@ function filteredAndSearched() {
   return rows;
 }
 
+
   window.addEventListener('keydown', (e) => {
     if (e.key === '/') {
       if (document.activeElement !== searchInput) {
@@ -387,6 +392,7 @@ function filteredAndSearched() {
 </script>
 </body>
 </html>
+
 
 
 
