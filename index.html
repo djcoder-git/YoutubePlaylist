@@ -268,6 +268,14 @@
     return escapeHtml(sval);
   }
 
+  // Dynamically detect category column (any column that has 'excel' or 'podcast')
+  const categoryKey = Object.keys(data[0] || {}).find(k =>
+    data.some(row => {
+      const val = row[k] ?? '';
+      return String(val).toLowerCase().includes('excel') || String(val).toLowerCase().includes('podcast');
+    })
+  );
+
   function renderRows(rows){
     if (!rows.length) {
       tbody.innerHTML = '';
@@ -277,7 +285,7 @@
     emptyBox.style.display = 'none';
     tbody.innerHTML = rows.map(r => {
       return '<tr>' + columns.map(col => {
-        if (/^category$/i.test(col)) {
+        if (categoryKey && col === categoryKey) {
           const v = (r[col] ?? '').toString().trim();
           const cls = /tech/i.test(v) ? 'tech' : (/excel/i.test(v) ? 'excel' : '');
           const badge = v ? `<span class="badge ${cls}">${escapeHtml(v)}</span>` : '';
@@ -321,23 +329,22 @@
   categorySelect.addEventListener('change', () => renderRows(filteredAndSearched()));
   searchInput.addEventListener('input', () => renderRows(filteredAndSearched()));
 
-  function filteredAndSearched(){
+  function filteredAndSearched() {
     const cat = categorySelect.value.trim().toLowerCase();
     const q = searchInput.value.trim().toLowerCase();
 
-    // Dynamically find the category key
-    const catKey = Object.keys(data[0] || {}).find(k => k.toLowerCase() === 'category');
-
     let rows = data.filter(row => {
-      if (catKey && cat !== 'all categories') {
-        const val = (row[catKey] ?? '').toString().trim().toLowerCase();
+      if (categoryKey && cat !== 'all categories') {
+        const val = (row[categoryKey] ?? '').toString().trim().toLowerCase();
         if (val !== cat) return false;
       }
       return true;
     });
 
     if (q) {
-      rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
+      rows = rows.filter(r =>
+        Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q))
+      );
     }
 
     if (currentSort.col) {
@@ -371,6 +378,7 @@
 </script>
 </body>
 </html>
+
 
 
 
