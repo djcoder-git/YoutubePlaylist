@@ -340,38 +340,38 @@
     renderRows(filteredAndSearched());
   });
 
-  function filteredAndSearched(){
-    const cat = categorySelect.value;
-    const q = searchInput.value.trim().toLowerCase();
+function filteredAndSearched() {
+  const cat = categorySelect.value;
+  const q = searchInput.value.trim().toLowerCase();
 
-    let rows = data.filter(row => {
-      if (cat && cat !== 'All') {
-        const v = Object.entries(row).find(([k]) => /^category$/i.test(k));
-        const val = v ? (row[v[0]] ?? '') : '';
-        if (!new RegExp(`^${cat}$`, 'i').test(String(val).trim())) return false;
-      }
-      return true;
-    });
-
-    if (q) {
-      rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
+  let rows = data.filter(row => {
+    const rowCategory = (row.category ?? '').toString().trim().toLowerCase();
+    if (cat && cat !== 'All Categories') {
+      if (rowCategory !== cat.toLowerCase()) return false;
     }
+    return true;
+  });
 
-    if (currentSort.col) {
-      const col = currentSort.col;
-      const asc = currentSort.asc;
-      rows.sort((a,b) => {
-        const av = a[col] ?? '';
-        const bv = b[col] ?? '';
-        const an = Number(String(av).replace(/[^\d.-]/g,''));
-        const bn = Number(String(bv).replace(/[^\d.-]/g,''));
-        if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
-        return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
-      });
-    }
-    currentRows = rows;
-    return rows;
+  if (q) {
+    rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
   }
+
+  if (currentSort.col) {
+    const col = currentSort.col;
+    const asc = currentSort.asc;
+    rows.sort((a,b) => {
+      const av = a[col] ?? '';
+      const bv = b[col] ?? '';
+      const an = Number(String(av).replace(/[^\d.-]/g,''));
+      const bn = Number(String(bv).replace(/[^\d.-]/g,''));
+      if (isFinite(an) && isFinite(bn)) return asc ? an - bn : bn - an;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }
+
+  currentRows = rows;
+  return rows;
+}
 
   window.addEventListener('keydown', (e) => {
     if (e.key === '/') {
@@ -387,6 +387,7 @@
 </script>
 </body>
 </html>
+
 
 
 
