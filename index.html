@@ -204,7 +204,6 @@
       </div>
     </div>
   </div>
-
 <script>
 (async function(){
   let data;
@@ -225,6 +224,8 @@
   const thead = document.getElementById('thead');
   const tbody = document.getElementById('tbody');
   const emptyBox = document.getElementById('empty');
+  const categorySelect = document.getElementById('category');
+  const searchInput = document.getElementById('search');
 
   thead.innerHTML = '<tr>' + columns.map(c => `<th data-col="${c}">${c} <span class="sortdir"></span></th>`).join('') + '</tr>';
 
@@ -268,13 +269,18 @@
     return escapeHtml(sval);
   }
 
-  // Dynamically detect category column (any column that has 'excel' or 'podcast')
+  // Detect category column dynamically
   const categoryKey = Object.keys(data[0] || {}).find(k =>
-    data.some(row => {
-      const val = row[k] ?? '';
-      return String(val).toLowerCase().includes('excel') || String(val).toLowerCase().includes('podcast');
-    })
+    data.some(row => row[k] != null)
   );
+
+  // Populate category dropdown dynamically
+  const uniqueCats = Array.from(new Set(
+    data.map(row => (row[categoryKey] ?? '').toString().trim()).filter(v => v)
+  )).sort();
+
+  categorySelect.innerHTML = '<option value="All Categories">All Categories</option>' +
+    uniqueCats.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 
   function renderRows(rows){
     if (!rows.length) {
@@ -322,9 +328,6 @@
       renderRows(filteredAndSearched());
     });
   });
-
-  const categorySelect = document.getElementById('category');
-  const searchInput = document.getElementById('search');
 
   categorySelect.addEventListener('change', () => renderRows(filteredAndSearched()));
   searchInput.addEventListener('input', () => renderRows(filteredAndSearched()));
@@ -378,6 +381,7 @@
 </script>
 </body>
 </html>
+
 
 
 
